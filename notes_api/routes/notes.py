@@ -59,15 +59,23 @@ def delete_note(note_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Nota deletada com sucesso"}
 
-# IA: Resumo da nota com Ollama
 @router.get("/notes/{note_id}/summary")
 def summarize_note(note_id: int, db: Session = Depends(get_db)):
     note = db.query(NoteModel).filter(NoteModel.id == note_id).first()
     if not note:
         raise HTTPException(status_code=404, detail="Nota não encontrada")
-    
-    response = ollama.chat(model="llama3", messages=[
-        {"role": "user", "content": f"Resuma o seguinte texto em poucas linhas: {note.conteudo}"}
-    ])
-    
-    return {"id": note.id, "titulo": note.titulo, "resumo": response["message"]["content"]}
+
+    try:
+        response = ollama.chat(model="llama3.2", messages=[
+            {"role": "user", "content": f"Resuma o seguinte texto em poucas linhas: {note.conteudo}"}
+        ])
+        resumo = response["message"]["content"]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar resumo: {str(e)}")
+
+    return {
+        "id": note.id,
+        "titulo": note.titulo,
+        "resumo": resumo
+    }
+
